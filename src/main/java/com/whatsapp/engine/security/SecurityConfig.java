@@ -75,6 +75,10 @@ public class SecurityConfig {
                                 "/health",
                                 "/auth/register",
                                 "/auth/login",
+
+                                // Forgot password does not require an existing JWT.
+                                "/auth/forgot-password",
+
                                 "/webhooks/meta",
                                 "/actuator/health/**",
                                 "/actuator/info",
