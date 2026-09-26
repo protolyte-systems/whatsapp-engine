@@ -1,6 +1,7 @@
 package com.whatsapp.engine.auth;
 
 import com.whatsapp.engine.auth.dto.AuthResponse;
+import com.whatsapp.engine.auth.dto.ForgotPasswordRequest;
 import com.whatsapp.engine.auth.dto.LoginRequest;
 import com.whatsapp.engine.auth.dto.RegisterRequest;
 import com.whatsapp.engine.auth.service.AuthService;
@@ -33,5 +34,20 @@ public class AuthController {
     @PostMapping("/login")
     public ResponseEntity<ApiResponse<AuthResponse>> login(@Valid @RequestBody LoginRequest request) {
         return ResponseEntity.ok(ApiResponse.success("Login successful", authService.login(request)));
+    }
+
+    /*
+     * Forgot Password API
+     * Accepts user ID and email for user verification.
+     * The actual forgot-password processing is handled by AuthService.
+     */
+    @PostMapping("/forgot-password")
+    public ResponseEntity<ApiResponse<Void>> forgotPassword(
+            @Valid @RequestBody ForgotPasswordRequest request
+    ) {
+        authService.forgotPassword(request);
+        return ResponseEntity.ok(
+                ApiResponse.success("Forgot password request processed successfully", null)
+        );
     }
 }

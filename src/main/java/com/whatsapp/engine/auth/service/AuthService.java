@@ -3,6 +3,7 @@ package com.whatsapp.engine.auth.service;
 import com.whatsapp.engine.auth.Role;
 import com.whatsapp.engine.auth.User;
 import com.whatsapp.engine.auth.dto.AuthResponse;
+import com.whatsapp.engine.auth.dto.ForgotPasswordRequest;
 import com.whatsapp.engine.auth.dto.LoginRequest;
 import com.whatsapp.engine.auth.dto.RegisterRequest;
 import com.whatsapp.engine.auth.repository.UserRepository;
@@ -42,11 +43,19 @@ public class AuthService {
         String slug = request.organizationSlug().trim().toLowerCase(Locale.ROOT);
 
         if (organizationRepository.existsBySlugIgnoreCase(slug)) {
-            throw new ApplicationException(HttpStatus.CONFLICT, "ORGANIZATION_EXISTS", "Organization slug already exists");
+            throw new ApplicationException(
+                    HttpStatus.CONFLICT,
+                    "ORGANIZATION_EXISTS",
+                    "Organization slug already exists"
+            );
         }
 
         if (userRepository.existsByEmailIgnoreCase(email)) {
-            throw new ApplicationException(HttpStatus.CONFLICT, "USER_EXISTS", "Email already exists");
+            throw new ApplicationException(
+                    HttpStatus.CONFLICT,
+                    "USER_EXISTS",
+                    "Email already exists"
+            );
         }
 
         Organization organization = new Organization();
@@ -80,6 +89,48 @@ public class AuthService {
         return buildAuthResponse(user);
     }
 
+    /*
+     * Forgot Password
+     * Verifies the user ID, email, and account status before updating
+     * the password directly in the users table.
+     */
+    @Transactional
+    public void forgotPassword(ForgotPasswordRequest request) {
+        User user = userRepository.findById(request.userId())
+                .orElseThrow(() -> new ApplicationException(
+                        HttpStatus.NOT_FOUND,
+                        "USER_NOT_FOUND",
+                        "User not found"
+                ));
+
+        if (!user.getEmail().equalsIgnoreCase(request.email().trim())) {
+            throw new ApplicationException(
+                    HttpStatus.BAD_REQUEST,
+                    "USER_EMAIL_MISMATCH",
+                    "User ID and email do not match"
+            );
+        }
+
+        if (!user.isEnabled()) {
+            throw new ApplicationException(
+                    HttpStatus.BAD_REQUEST,
+                    "USER_INACTIVE",
+                    "User account is not active"
+            );
+        }
+
+        if (!request.newPassword().equals(request.confirmPassword())) {
+            throw new ApplicationException(
+                    HttpStatus.BAD_REQUEST,
+                    "PASSWORD_MISMATCH",
+                    "New password and confirm password must match"
+            );
+        }
+
+        user.setPassword(passwordEncoder.encode(request.newPassword()));
+        userRepository.save(user);
+    }
+
     private AuthResponse buildAuthResponse(User user) {
         Organization organization = user.getOrganization();
         String token = jwtService.generateToken(user);
@@ -87,7 +138,12 @@ public class AuthService {
         return AuthResponse.bearer(
                 token,
                 jwtService.expirationMillis(),
-                new AuthResponse.UserSummary(user.getId(), user.getFullName(), user.getEmail(), user.getRole()),
+                new AuthResponse.UserSummary(
+                        user.getId(),
+                        user.getFullName(),
+                        user.getEmail(),
+                        user.getRole()
+                ),
                 new AuthResponse.OrganizationSummary(
                         organization.getId(),
                         organization.getName(),
@@ -101,6 +157,10 @@ public class AuthService {
     }
 
     private ApplicationException invalidCredentialsException() {
-        return new ApplicationException(HttpStatus.UNAUTHORIZED, "INVALID_CREDENTIALS", "Invalid email or password");
+        return new ApplicationException(
+                HttpStatus.UNAUTHORIZED,
+                "INVALID_CREDENTIALS",
+                "Invalid email or password"
+        );
     }
 }
